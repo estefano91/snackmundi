@@ -1,0 +1,36 @@
+rules_version = '2';
+
+// El mapa se lee sin credenciales; escribe solo la cuenta compartida de edición.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ⚠️ Pon aquí el email exacto de la cuenta de edición (Authentication > Users).
+    function esEditor() {
+      return request.auth != null
+        && request.auth.token.email == 'editor@elmundoabocados.app'
+        && request.auth.token.firebase.sign_in_provider == 'password';
+    }
+
+    match /countries/{code} {
+      allow read: if true;
+      allow write: if esEditor()
+        && code.matches('^[A-Z]{2}$');
+
+      match /photos/{photoId} {
+        allow read: if true;
+        allow create: if esEditor()
+          && request.resource.data.url is string
+          && request.resource.data.keys().hasOnly(
+               ['url', 'path', 'thumbUrl', 'thumbPath', 'width', 'height', 'dish', 'author', 'createdAt']
+             )
+          && request.resource.data.dish.size() <= 120
+          && request.resource.data.author.size() <= 60;
+        allow update, delete: if esEditor();
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,25 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ⚠️ El mismo email que en firestore.rules.
+    function esEditor() {
+      return request.auth != null
+        && request.auth.token.email == 'editor@elmundoabocados.app'
+        && request.auth.token.firebase.sign_in_provider == 'password';
+    }
+
+    match /photos/{code}/{archivo} {
+      allow read: if true;
+      allow write: if esEditor()
+        && request.resource.size < 3 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if esEditor();
+    }
+
+    match /{todo=**} {
+      allow read, write: if false;
+    }
+  }
+}
